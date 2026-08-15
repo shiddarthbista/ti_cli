@@ -12,36 +12,55 @@ jobs:
         include:
           - os: macos-latest
             artifact: ti_cli-macos
-            type: app-image
+            app_dir: ti-cli.app
+
           - os: windows-latest
             artifact: ti_cli-windows
-            type: app-image
+            app_dir: ti-cli
+
           - os: ubuntu-latest
             artifact: ti_cli-linux
-            type: app-image
+            app_dir: ti-cli
 
     runs-on: ${{ matrix.os }}
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v5
 
-      - uses: actions/setup-java@v4
+      - name: Setup Java
+        uses: actions/setup-java@v5
         with:
-          distribution: 'temurin'
+          distribution: temurin
           java-version: '21'
 
       - name: Make gradlew executable
-        run: chmod +x gradlew
+        if: runner.os != 'Windows'
         shell: bash
+        run: chmod +x gradlew
 
-      - name: Build jar
-        run: ./gradlew shadowJar
+      - name: Build Shadow JAR
+        run: ./gradlew clean shadowJar
 
+      # -------------------------
+      # macOS / Linux
+      # -------------------------
       - name: Package with jpackage (Unix)
         if: runner.os != 'Windows'
         shell: bash
         run: |
-          JAR_FILE=$(ls build/libs/*-all.jar)
+          rm -rf dist
+          mkdir -p dist
+
+          JAR_FILE=$(find build/libs -name "*-all.jar" -print -quit)
+
+          if [ -z "$JAR_FILE" ]; then
+            echo "ERROR: Shadow JAR not found"
+            exit 1
+          fi
+
+          echo "Using JAR: $JAR_FILE"
+
           jpackage \
             --input build/libs \
             --name ti-cli \
@@ -50,11 +69,35 @@ jobs:
             --type app-image \
             --dest dist
 
+          echo ""
+          echo "Contents of dist:"
+          find dist -maxdepth 3 -print
+
+      # -------------------------
+      # Windows
+      # -------------------------
       - name: Package with jpackage (Windows)
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          $jarFile = Get-ChildItem -Path build/libs -Filter "*-all.jar" | Select-Object -First 1
+          if (Test-Path dist) {
+            Remove-Item -Recurse -Force dist
+          }
+
+          New-Item -ItemType Directory -Path dist | Out-Null
+
+          $jarFile = Get-ChildItem `
+            -Path build/libs `
+            -Filter "*-all.jar" |
+            Select-Object -First 1
+
+          if (-not $jarFile) {
+            Write-Error "Shadow JAR not found"
+            exit 1
+          }
+
+          Write-Host "Using JAR: $($jarFile.FullName)"
+
           jpackage `
             --input build/libs `
             --name ti-cli `
@@ -63,37 +106,108 @@ jobs:
             --type app-image `
             --dest dist
 
-      - name: Zip app image (Unix)
+          Write-Host ""
+          Write-Host "Contents of dist:"
+          Get-ChildItem -Recurse dist
+
+      # -------------------------
+      # Verify app image
+      # -------------------------
+      - name: Verify package (Unix)
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          if [ ! -d "dist/${{ matrix.app_dir }}" ]; then
+            echo "ERROR: Expected app image not found:"
+            echo "dist/${{ matrix.app_dir }}"
+            echo ""
+            echo "Actual contents:"
+            find dist -maxdepth 3 -print
+            exit 1
+          fi
+
+          echo "Package found:"
+          ls -la "dist/${{ matrix.app_dir }}"
+
+      - name: Verify package (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $path = "dist/${{ matrix.app_dir }}"
+
+          if (-not (Test-Path $path)) {
+            Write-Error "Expected app image not found: $path"
+            Get-ChildItem -Recurse dist
+            exit 1
+          }
+
+          Write-Host "Package found:"
+          Get-ChildItem $path
+
+      # -------------------------
+      # Zip macOS / Linux
+      # -------------------------
+      - name: Zip package (Unix)
         if: runner.os != 'Windows'
         shell: bash
         run: |
           cd dist
-          zip -r ../${{ matrix.artifact }}.zip .
+
+          zip -r "../${{ matrix.artifact }}.zip" \
+            "${{ matrix.app_dir }}"
+
           cd ..
 
-      - name: Zip app image (Windows)
+          echo "Created:"
+          ls -lh "${{ matrix.artifact }}.zip"
+
+      # -------------------------
+      # Zip Windows
+      # -------------------------
+      - name: Zip package (Windows)
         if: runner.os == 'Windows'
         shell: pwsh
-        run: Compress-Archive -Path dist/* -DestinationPath ${{ matrix.artifact }}.zip
+        run: |
+          Compress-Archive `
+            -Path "dist/${{ matrix.app_dir }}" `
+            -DestinationPath "${{ matrix.artifact }}.zip"
 
+          Write-Host "Created:"
+          Get-Item "${{ matrix.artifact }}.zip"
+
+      # -------------------------
+      # Upload artifact
+      # -------------------------
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.artifact }}
           path: ${{ matrix.artifact }}.zip
 
+  # ==========================================
+  # GitHub Release
+  # ==========================================
   release:
     needs: build
     runs-on: ubuntu-latest
+
     permissions:
       contents: write
+
     steps:
-      - uses: actions/download-artifact@v4
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: release
+
+      - name: Show release files
+        run: |
+          find release -type f -print
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            ti_cli-macos/*
-            ti_cli-windows/*
-            ti_cli-linux/*
+            release/ti_cli-macos/ti_cli-macos.zip
+            release/ti_cli-windows/ti_cli-windows.zip
+            release/ti_cli-linux/ti_cli-linux.zip
