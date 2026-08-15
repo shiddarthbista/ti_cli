@@ -43,6 +43,7 @@ class TeamRenderer(
             }
         }
 
+
         // Measure how wide the table will actually render
         val tableWidth = teamTable.measure(terminal).max
 
