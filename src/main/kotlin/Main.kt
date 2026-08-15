@@ -1,5 +1,6 @@
 package bista.shiddarth
 
+import bista.shiddarth.commands.ScheduleCommand
 import bista.shiddarth.commands.TeamCommand
 import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.core.main
@@ -16,7 +17,8 @@ class TiCommand : CliktCommand(
 fun main(args: Array<String>) {
     TiCommand()
         .subcommands(
-            TeamCommand()
+            TeamCommand(),
+            ScheduleCommand()
         )
         .main(args)
 }
