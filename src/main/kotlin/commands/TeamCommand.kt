@@ -1,6 +1,6 @@
 package bista.shiddarth.commands
 
-import bista.shiddarth.TeamRenderer
+import bista.shiddarth.renderer.TeamRenderer
 import bista.shiddarth.service.TeamService
 import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.core.Context

@@ -16,7 +16,9 @@ class ScheduleCommand(
     override fun help(context: Context): String = "Show the TI Schedule"
 
     override fun run() = runBlocking {
-        val matches = scheduleService.getSchedule()
+        val matches = scheduleService.getSchedule().filter {
+            it.leagueName.contains("TI 2026")
+        }
 
         renderer.render(matches)
     }

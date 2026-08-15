@@ -1,4 +1,4 @@
-package bista.shiddarth
+package bista.shiddarth.renderer
 
 import bista.shiddarth.model.Team
 import com.github.ajalt.mordant.rendering.BorderType
@@ -17,7 +17,7 @@ class TeamRenderer(
         terminal.println()
 
         val teamTable = table {
-            borderType = BorderType.SQUARE_DOUBLE_SECTION_SEPARATOR
+            borderType = BorderType.Companion.SQUARE_DOUBLE_SECTION_SEPARATOR
 
             header {
                 style = TextColors.brightWhite + TextStyles.bold
