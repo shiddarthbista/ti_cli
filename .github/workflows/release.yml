@@ -54,6 +54,6 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            your-app-macos/*
-            your-app-windows.exe/*
-            your-app-linux/*
+            ti-cli-macos/*
+            ti-cli-windows.exe/*
+            ti-cli-linux/*
