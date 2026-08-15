@@ -145,19 +145,37 @@ jobs:
           Get-ChildItem $path
 
       # -------------------------
-      # Zip macOS / Linux
+      # Ad-hoc codesign (macOS only)
       # -------------------------
-      - name: Zip package (Unix)
-        if: runner.os != 'Windows'
+      - name: Ad-hoc codesign (macOS)
+        if: matrix.os == 'macos-latest'
+        shell: bash
+        run: |
+          codesign --force --deep --sign - "dist/${{ matrix.app_dir }}"
+
+      # -------------------------
+      # Zip macOS (use ditto to preserve .app bundle integrity)
+      # -------------------------
+      - name: Zip package (macOS)
+        if: matrix.os == 'macos-latest'
         shell: bash
         run: |
           cd dist
-
-          zip -r "../${{ matrix.artifact }}.zip" \
-            "${{ matrix.app_dir }}"
-
+          ditto -c -k --sequesterRsrc --keepParent "${{ matrix.app_dir }}" "../${{ matrix.artifact }}.zip"
           cd ..
+          echo "Created:"
+          ls -lh "${{ matrix.artifact }}.zip"
 
+      # -------------------------
+      # Zip Linux
+      # -------------------------
+      - name: Zip package (Linux)
+        if: matrix.os == 'ubuntu-latest'
+        shell: bash
+        run: |
+          cd dist
+          zip -r "../${{ matrix.artifact }}.zip" "${{ matrix.app_dir }}"
+          cd ..
           echo "Created:"
           ls -lh "${{ matrix.artifact }}.zip"
 
