@@ -11,11 +11,11 @@ jobs:
       matrix:
         include:
           - os: macos-latest
-            artifact: your-app-macos
+            artifact: ti_cli-macos
           - os: windows-latest
-            artifact: your-app-windows.exe
+            artifact: ti_cli-windows.exe
           - os: ubuntu-latest
-            artifact: your-app-linux
+            artifact: ti_cli-linux
 
     runs-on: ${{ matrix.os }}
 
