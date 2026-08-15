@@ -7,23 +7,7 @@ on:
 
 jobs:
   build:
-    strategy:
-      matrix:
-        include:
-          - os: macos-latest
-            artifact: ti_cli-macos
-            app_dir: ti-cli.app
-
-          - os: windows-latest
-            artifact: ti_cli-windows
-            app_dir: ti-cli
-
-          - os: ubuntu-latest
-            artifact: ti_cli-linux
-            app_dir: ti-cli
-
-    runs-on: ${{ matrix.os }}
-
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -35,183 +19,27 @@ jobs:
           java-version: '21'
 
       - name: Make gradlew executable
-        if: runner.os != 'Windows'
-        shell: bash
         run: chmod +x gradlew
 
       - name: Build Shadow JAR
         run: ./gradlew clean shadowJar
 
-      # -------------------------
-      # macOS / Linux
-      # -------------------------
-      - name: Package with jpackage (Unix)
-        if: runner.os != 'Windows'
-        shell: bash
+      - name: Rename jar
         run: |
-          rm -rf dist
-          mkdir -p dist
-
           JAR_FILE=$(find build/libs -name "*-all.jar" -print -quit)
+          cp "$JAR_FILE" ti-cli.jar
 
-          if [ -z "$JAR_FILE" ]; then
-            echo "ERROR: Shadow JAR not found"
-            exit 1
-          fi
-
-          echo "Using JAR: $JAR_FILE"
-
-          jpackage \
-            --input build/libs \
-            --name ti-cli \
-            --main-jar "$(basename "$JAR_FILE")" \
-            --main-class bista.shiddarth.MainKt \
-            --type app-image \
-            --dest dist
-
-          echo ""
-          echo "Contents of dist:"
-          find dist -maxdepth 3 -print
-
-      # -------------------------
-      # Windows
-      # -------------------------
-      - name: Package with jpackage (Windows)
-        if: runner.os == 'Windows'
-        shell: pwsh
-        run: |
-          if (Test-Path dist) {
-            Remove-Item -Recurse -Force dist
-          }
-
-          New-Item -ItemType Directory -Path dist | Out-Null
-
-          $jarFile = Get-ChildItem `
-            -Path build/libs `
-            -Filter "*-all.jar" |
-            Select-Object -First 1
-
-          if (-not $jarFile) {
-            Write-Error "Shadow JAR not found"
-            exit 1
-          }
-
-          Write-Host "Using JAR: $($jarFile.FullName)"
-
-          jpackage `
-            --input build/libs `
-            --name ti-cli `
-            --main-jar $jarFile.Name `
-            --main-class bista.shiddarth.MainKt `
-            --type app-image `
-            --dest dist
-
-          Write-Host ""
-          Write-Host "Contents of dist:"
-          Get-ChildItem -Recurse dist
-
-      # -------------------------
-      # Verify app image
-      # -------------------------
-      - name: Verify package (Unix)
-        if: runner.os != 'Windows'
-        shell: bash
-        run: |
-          if [ ! -d "dist/${{ matrix.app_dir }}" ]; then
-            echo "ERROR: Expected app image not found:"
-            echo "dist/${{ matrix.app_dir }}"
-            echo ""
-            echo "Actual contents:"
-            find dist -maxdepth 3 -print
-            exit 1
-          fi
-
-          echo "Package found:"
-          ls -la "dist/${{ matrix.app_dir }}"
-
-      - name: Verify package (Windows)
-        if: runner.os == 'Windows'
-        shell: pwsh
-        run: |
-          $path = "dist/${{ matrix.app_dir }}"
-
-          if (-not (Test-Path $path)) {
-            Write-Error "Expected app image not found: $path"
-            Get-ChildItem -Recurse dist
-            exit 1
-          }
-
-          Write-Host "Package found:"
-          Get-ChildItem $path
-
-      # -------------------------
-      # Ad-hoc codesign (macOS only)
-      # -------------------------
-      - name: Ad-hoc codesign (macOS)
-        if: matrix.os == 'macos-latest'
-        shell: bash
-        run: |
-          codesign --force --deep --sign - "dist/${{ matrix.app_dir }}"
-
-      # -------------------------
-      # Zip macOS (use ditto to preserve .app bundle integrity)
-      # -------------------------
-      - name: Zip package (macOS)
-        if: matrix.os == 'macos-latest'
-        shell: bash
-        run: |
-          cd dist
-          ditto -c -k --sequesterRsrc --keepParent "${{ matrix.app_dir }}" "../${{ matrix.artifact }}.zip"
-          cd ..
-          echo "Created:"
-          ls -lh "${{ matrix.artifact }}.zip"
-
-      # -------------------------
-      # Zip Linux
-      # -------------------------
-      - name: Zip package (Linux)
-        if: matrix.os == 'ubuntu-latest'
-        shell: bash
-        run: |
-          cd dist
-          zip -r "../${{ matrix.artifact }}.zip" "${{ matrix.app_dir }}"
-          cd ..
-          echo "Created:"
-          ls -lh "${{ matrix.artifact }}.zip"
-
-      # -------------------------
-      # Zip Windows
-      # -------------------------
-      - name: Zip package (Windows)
-        if: runner.os == 'Windows'
-        shell: pwsh
-        run: |
-          Compress-Archive `
-            -Path "dist/${{ matrix.app_dir }}" `
-            -DestinationPath "${{ matrix.artifact }}.zip"
-
-          Write-Host "Created:"
-          Get-Item "${{ matrix.artifact }}.zip"
-
-      # -------------------------
-      # Upload artifact
-      # -------------------------
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.artifact }}
-          path: ${{ matrix.artifact }}.zip
+          name: ti-cli-jar
+          path: ti-cli.jar
 
-  # ==========================================
-  # GitHub Release
-  # ==========================================
   release:
     needs: build
     runs-on: ubuntu-latest
-
     permissions:
       contents: write
-
     steps:
       - name: Download artifacts
         uses: actions/download-artifact@v4
@@ -219,13 +47,10 @@ jobs:
           path: release
 
       - name: Show release files
-        run: |
-          find release -type f -print
+        run: find release -type f -print
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            release/ti_cli-macos/ti_cli-macos.zip
-            release/ti_cli-windows/ti_cli-windows.zip
-            release/ti_cli-linux/ti_cli-linux.zip
+            release/ti-cli-jar/ti-cli.jar
