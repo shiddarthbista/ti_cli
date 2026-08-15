@@ -1,0 +1,36 @@
+[
+  {
+    "name": "bista.shiddarth.model.LiveMatch",
+    "fields": [
+      {
+        "name": "Companion"
+      }
+    ]
+  },
+  {
+    "name": "bista.shiddarth.model.LiveMatch$Companion",
+    "methods": [
+      {
+        "name": "serializer",
+        "parameterTypes": []
+      }
+    ]
+  },
+  {
+    "name": "bista.shiddarth.model.LivePlayer",
+    "fields": [
+      {
+        "name": "Companion"
+      }
+    ]
+  },
+  {
+    "name": "bista.shiddarth.model.LivePlayer$Companion",
+    "methods": [
+      {
+        "name": "serializer",
+        "parameterTypes": []
+      }
+    ]
+  }
+]

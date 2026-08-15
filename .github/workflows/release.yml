@@ -36,7 +36,7 @@ jobs:
         run: ./gradlew shadowJar
 
       - name: Build native image
-        run: native-image --initialize-at-build-time=kotlin.DeprecationLevel -jar build/libs/*-all.jar ${{ matrix.artifact }}
+        run: native-image --initialize-at-build-time=kotlin.DeprecationLevel --initialize-at-build-time=kotlinx.serialization -jar build/libs/*-all.jar ${{ matrix.artifact }}
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
