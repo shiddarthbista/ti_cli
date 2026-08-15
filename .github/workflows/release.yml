@@ -54,6 +54,6 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            ti-cli-macos/*
-            ti-cli-windows.exe/*
-            ti-cli-linux/*
+            ti_cli-macos/*
+            ti_cli-windows.exe/*
+            ti_cli-linux/*
