@@ -32,8 +32,9 @@ class TeamRenderer(
 
             body {
                 team.players.forEach { player ->
+                    val displayName = if (player.captain) "${player.name} (C)" else player.name
                     row(
-                        TextColors.brightBlue(player.name),
+                        TextColors.brightBlue(displayName),
                         player.country,
                         player.age,
                         player.role
