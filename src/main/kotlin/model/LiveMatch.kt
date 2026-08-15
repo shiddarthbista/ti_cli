@@ -2,7 +2,7 @@ package bista.shiddarth.model
 
 import kotlinx.serialization.Serializable
 
-@kotlinx.serialization.Serializable
+@Serializable
 data class LiveMatch(
     val league_id: Long,
     val game_time: Int,
