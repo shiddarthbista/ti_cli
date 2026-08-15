@@ -12,41 +12,81 @@ jobs:
         include:
           - os: macos-latest
             artifact: ti_cli-macos
+            type: app-image
           - os: windows-latest
-            artifact: ti_cli-windows.exe
+            artifact: ti_cli-windows
+            type: app-image
           - os: ubuntu-latest
             artifact: ti_cli-linux
+            type: app-image
 
     runs-on: ${{ matrix.os }}
 
     steps:
       - uses: actions/checkout@v4
 
-      - uses: graalvm/setup-graalvm@v1
+      - uses: actions/setup-java@v4
         with:
+          distribution: 'temurin'
           java-version: '21'
-          distribution: 'graalvm'
-          native-image-job-reports: 'true'
-
 
       - name: Make gradlew executable
         run: chmod +x gradlew
+        shell: bash
 
       - name: Build jar
         run: ./gradlew shadowJar
 
-      - name: Build native image
-        run: native-image --initialize-at-build-time=kotlin,kotlinx.serialization -jar build/libs/*-all.jar ${{ matrix.artifact }}
+      - name: Package with jpackage (Unix)
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          JAR_FILE=$(ls build/libs/*-all.jar)
+          jpackage \
+            --input build/libs \
+            --name ti-cli \
+            --main-jar "$(basename "$JAR_FILE")" \
+            --main-class bista.shiddarth.MainKt \
+            --type app-image \
+            --dest dist
+
+      - name: Package with jpackage (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $jarFile = Get-ChildItem -Path build/libs -Filter "*-all.jar" | Select-Object -First 1
+          jpackage `
+            --input build/libs `
+            --name ti-cli `
+            --main-jar $jarFile.Name `
+            --main-class bista.shiddarth.MainKt `
+            --type app-image `
+            --dest dist
+
+      - name: Zip app image (Unix)
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          cd dist
+          zip -r ../${{ matrix.artifact }}.zip .
+          cd ..
+
+      - name: Zip app image (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: Compress-Archive -Path dist/* -DestinationPath ${{ matrix.artifact }}.zip
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.artifact }}
-          path: ${{ matrix.artifact }}*
+          path: ${{ matrix.artifact }}.zip
 
   release:
     needs: build
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - uses: actions/download-artifact@v4
 
@@ -55,5 +95,5 @@ jobs:
         with:
           files: |
             ti_cli-macos/*
-            ti_cli-windows.exe/*
+            ti_cli-windows/*
             ti_cli-linux/*

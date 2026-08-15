@@ -18,6 +18,8 @@ dependencies {
     implementation("com.github.ajalt.clikt:clikt:5.1.0")
     implementation("com.github.ajalt.mordant:mordant:3.0.2")
 
+    implementation("com.google.code.gson:gson:2.13.1")
+
     implementation("io.ktor:ktor-client-core:3.5.1")
     implementation("io.ktor:ktor-client-java:3.5.1")
     implementation("io.ktor:ktor-client-content-negotiation:3.5.1")
