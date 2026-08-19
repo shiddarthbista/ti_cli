@@ -1,7 +1,11 @@
 package bista.shiddarth.renderer
 
 import bista.shiddarth.model.LiveMatch
-import com.github.ajalt.mordant.rendering.BorderType.Companion.SQUARE_DOUBLE_SECTION_SEPARATOR
+import bista.shiddarth.model.LivePlayer
+import bista.shiddarth.model.MatchDetails
+import bista.shiddarth.model.MatchPlayer
+import bista.shiddarth.util.heroMap
+import com.github.ajalt.mordant.rendering.TextAlign
 import com.github.ajalt.mordant.rendering.TextColors
 import com.github.ajalt.mordant.rendering.TextStyles
 import com.github.ajalt.mordant.table.table
@@ -17,120 +21,162 @@ class LiveRenderer(
         terminal.println()
     }
 
-    fun selectMatch(matches: List<LiveMatch>): LiveMatch {
-
-        terminal.println()
-        terminal.println(TextColors.brightWhite(TextStyles.bold("LIVE NOW")))
-        terminal.println()
-
-        matches.forEachIndexed { index, match ->
-
-            val radiant = cleanText(match.team_name_radiant, "Radiant")
-            val dire = cleanText(match.team_name_dire, "Dire")
-
-            terminal.println(
-                "${index + 1}. " +
-                        "$radiant vs $dire " +
-                        "(${formatGameTime(match.game_time)})"
-            )
-        }
-
-        terminal.println()
-
-        while (true) {
-            terminal.print("Select a match (1-${matches.size}): ")
-
-            val selection = readlnOrNull()?.trim()?.toIntOrNull()
-
-            if (selection != null && selection in 1..matches.size) {
-                return matches[selection - 1]
-            }
-
-            terminal.println(
-                TextColors.red("Invalid selection. Please choose 1-${matches.size}.")
-            )
-        }
-    }
-
-    fun renderMatch(
-        match: LiveMatch,
-        heroMap: Map<Int, String>
+    fun render(
+        liveMatch: LiveMatch,
+        matchDetails: MatchDetails
     ) {
-        val radiant = cleanText(match.team_name_radiant, "Radiant")
-        val dire = cleanText(match.team_name_dire, "Dire")
-
         terminal.println()
 
         terminal.println(
-            TextColors.brightWhite(
-                TextStyles.bold(
-                    "$radiant ${match.radiant_score} - " +
-                            "${match.dire_score} $dire"
-                )
+            TextStyles.bold(
+                TextColors.brightGreen(liveMatch.team_name_radiant) +
+                        " ${liveMatch.radiant_score} - ${liveMatch.dire_score} " +
+                        TextColors.brightRed(liveMatch.team_name_dire)
             )
         )
 
         terminal.println()
 
-        terminal.println("Game Time: ${formatGameTime(match.game_time)}")
-        terminal.println("Gold Lead: ${formatGoldLead(match.radiant_lead)}")
-        terminal.println("Spectators: ${match.spectators}")
+        val goldLead = when {
+            liveMatch.radiant_lead > 0 ->
+                "Radiant +${liveMatch.radiant_lead}"
+
+            liveMatch.radiant_lead < 0 ->
+                "Dire +${-liveMatch.radiant_lead}"
+
+            else ->
+                "Even"
+        }
+
+        terminal.println(
+            "Game Time: ${TextColors.brightCyan(formatGameTime(liveMatch.game_time))}"
+        )
+
+        val goldLeadColor = when {
+            liveMatch.radiant_lead > 0 -> TextColors.green
+            liveMatch.radiant_lead < 0 -> TextColors.red
+            else -> TextColors.yellow
+        }
+
+        terminal.println(
+            "Gold Lead: ${goldLeadColor(goldLead)}"
+        )
 
         terminal.println()
 
-        renderPlayers(match = match, heroMap = heroMap)
+        val matchPlayers = matchDetails.players.associateBy {
+            it.account_id
+        }
+
+        val radiantPlayers = liveMatch.players
+            .filter { it.team == 0 }
+
+        val direPlayers = liveMatch.players
+            .filter { it.team == 1 }
+
+        renderTeam(
+            teamName = liveMatch.team_name_radiant,
+            players = radiantPlayers,
+            matchPlayers = matchPlayers,
+            isRadiant = true,
+        )
 
         terminal.println()
+
+        renderTeam(
+            teamName = liveMatch.team_name_dire,
+            players = direPlayers,
+            matchPlayers = matchPlayers,
+            isRadiant = false,
+        )
     }
 
-    private fun renderPlayers(
-        match: LiveMatch,
-        heroMap: Map<Int, String>
+    private fun renderTeam(
+        teamName: String,
+        players: List<LivePlayer>,
+        matchPlayers: Map<Long?, MatchPlayer>,
+        isRadiant: Boolean
     ) {
-        val radiantPlayers = match.players
-            .filter { it.team == 0 }
-            .sortedBy { it.team_slot }
 
-        val direPlayers = match.players
-            .filter { it.team == 1 }
-            .sortedBy { it.team_slot }
+        val color = if (isRadiant) {
+            TextColors.brightGreen
+        } else {
+            TextColors.brightRed
+        }
 
-        val rowCount = maxOf(radiantPlayers.size, direPlayers.size)
+        val playerColor = if (isRadiant) {
+            TextColors.green
+        } else {
+            TextColors.red
+        }
 
-        terminal.print(
+        terminal.println(
+            color(
+                TextStyles.bold(teamName)
+            )
+        )
+
+        terminal.println(
             table {
-                borderType = SQUARE_DOUBLE_SECTION_SEPARATOR
+                column(2) {
+                    align = TextAlign.RIGHT
+                }
+                column(3) {
+                    align = TextAlign.RIGHT
+                }
+                column(4) {
+                    align = TextAlign.RIGHT
+                }
+                column(5) {
+                    align = TextAlign.RIGHT
+                }
+                column(6) {
+                    align = TextAlign.RIGHT
+                }
+                column(7) {
+                    align = TextAlign.RIGHT
+                }
+                column(8) {
+                    align = TextAlign.RIGHT
+                }
+                column(9) {
+                    align = TextAlign.RIGHT
+                }
+
                 header {
-                    row {
-                        cell(TextColors.brightGreen(TextStyles.bold("Player")))
-                        cell(TextColors.brightGreen(TextStyles.bold("Hero")))
-                        cell(TextColors.brightRed(TextStyles.bold("Player")))
-                        cell(TextColors.brightRed(TextStyles.bold("Hero")))
-                    }
+                    row(
+                        "Player",
+                        "Hero",
+                        "LVL",
+                        "K",
+                        "D",
+                        "A",
+                        "LH/DN",
+                        "NW",
+                        "GPM",
+                        "XPM"
+                    )
                 }
 
                 body {
-                    for (i in 0 until rowCount) {
-                        val radiant = radiantPlayers.getOrNull(i)
-                        val dire = direPlayers.getOrNull(i)
+                    players.forEach { livePlayer ->
 
-                        row {
-                            // Radiant team
-                            cell(TextColors.green(cleanText("${radiant?.team_tag}.${radiant?.name}","")))
-                            cell(
-                                TextColors.cyan(
-                                    radiant?.let { cleanText(heroMap[it.hero_id], "Unknown") } ?: ""
-                                )
-                            )
+                        val stats = matchPlayers[livePlayer.account_id]
 
-                            // Dire team
-                            cell(TextColors.red(cleanText("${dire?.team_tag}.${dire?.name}","")))
-                            cell(
-                                TextColors.cyan(
-                                    dire?.let { cleanText(heroMap[it.hero_id], "Unknown") } ?: ""
-                                )
-                            )
-                        }
+                        row(
+                            playerColor(stats?.name ?: "Unknown"),
+                            TextColors.cyan(heroMap[livePlayer.hero_id] ?: "Unknown"),
+                            stats?.level?.toString() ?: "-",
+                            stats?.kills?.toString() ?: "-",
+                            stats?.deaths?.toString() ?: "-",
+                            stats?.assists?.toString() ?: "-",
+                            stats?.let {
+                                "${it.last_hits}/${it.denies}"
+                            } ?: "0/0",
+                            TextColors.yellow(stats?.net_worth?.toString() ?: "-"),
+                            TextColors.yellow(stats?.gold_per_min?.toString() ?: "-"),
+                            stats?.xp_per_min?.toString() ?: "-"
+                        )
                     }
                 }
             }
@@ -138,25 +184,12 @@ class LiveRenderer(
     }
 
     private fun formatGameTime(seconds: Int): String {
-        if (seconds < 0) return "Starting in ${-seconds}s"
         val minutes = seconds / 60
         val remainingSeconds = seconds % 60
-        return "%02d:%02d".format(minutes, remainingSeconds)
-    }
 
-    private fun formatGoldLead(lead: Int): String {
-        return when {
-            lead > 0 -> TextColors.brightGreen("Radiant +$lead")
-            lead < 0 -> TextColors.brightRed("Dire +${-lead}")
-            else -> "Even"
-        }
-    }
-
-    private fun cleanText(value: String?, fallback: String): String {
-        val cleaned = value
-            ?.replace(Regex("\\p{C}"), "")
-            ?.trim()
-
-        return if (cleaned.isNullOrBlank()) fallback else cleaned
+        return "%02d:%02d".format(
+            minutes,
+            remainingSeconds
+        )
     }
 }

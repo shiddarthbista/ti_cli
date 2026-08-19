@@ -51,17 +51,9 @@ class ScheduleRenderer(
 
         val time = formatTime(match.startsAt)
 
-        val team1 =
-            match.teams
-                .getOrNull(0)
-                ?.name
-                ?: "TBD"
+        val team1 = match.teams.firstOrNull()?.name ?: "TBD"
 
-        val team2 =
-            match.teams
-                .getOrNull(1)
-                ?.name
-                ?: "TBD"
+        val team2 = match.teams.getOrNull(1)?.name ?: "TBD"
 
         val formattedMatch =
             time.padEnd(20) +
@@ -82,7 +74,5 @@ class ScheduleRenderer(
 
     private fun extractRound(leagueName: String): String {
         return leagueName
-            .substringAfter("Round ", "")
-            .let { "Round $it" }
     }
 }
